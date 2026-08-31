@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+/*这样庞大的程序，手写对于我不太可能，所以我借助了AI😜*/
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>AICILL 字符画设计器</title>
+<style>
+:root{
+  --bg:#0a0e12; --panel:#121a22; --panel2:#182231; --line:#26333f;
+  --fg:#dbe6f0; --dim:#7f93a6; --accent:#5eead4; --accent2:#38bdf8;
+  --danger:#fb7185; --radius:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);}
+body{
+  font-size:14px;line-height:1.5;
+  padding:0 12px calc(28px + env(safe-area-inset-bottom));
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+  overscroll-behavior-y:contain;
+}
+.wrap{max-width:640px;margin:0 auto;}
+
+/* ---------- 头部 ---------- */
+header{padding:18px 4px 12px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+.logo{
+  font-size:22px;font-weight:700;letter-spacing:3px;
+  background:linear-gradient(92deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+header .sub{font-size:11px;color:var(--dim);letter-spacing:.5px;}
+
+/* ---------- 卡片 ---------- */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:12px;}
+.card-title{font-size:11px;color:var(--dim);letter-spacing:1px;margin:0 0 10px 2px;display:flex;justify-content:space-between;align-items:center;}
+
+/* ---------- 分段控件 ---------- */
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;overflow-x:auto;}
+.seg button{
+  flex:1;min-width:52px;min-height:36px;border:0;border-radius:8px;background:transparent;
+  color:var(--dim);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap;padding:0 8px;
+}
+.seg button.on{background:var(--accent);color:#06231f;font-weight:700;}
+
+/* ---------- 画布 ---------- */
+#stage{position:relative;line-height:0;border-radius:10px;overflow:hidden;background:#000;}
+#board{display:block;touch-action:none;width:100%;}
+#stage .hint{
+  position:absolute;left:8px;bottom:8px;font-size:10px;color:var(--dim);
+  background:rgba(10,14,18,.72);padding:3px 8px;border-radius:6px;line-height:1.4;pointer-events:none;
+}
+.rowinfo{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-top:8px;padding:0 2px;}
+
+/* ---------- 笔刷 ---------- */
+#palette{display:flex;gap:6px;overflow-x:auto;padding:4px 2px 8px;scrollbar-width:thin;}
+.sw{
+  flex:0 0 auto;width:46px;height:52px;border-radius:9px;border:2px solid transparent;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  background:var(--panel2);cursor:pointer;position:relative;overflow:hidden;
+}
+.sw .g{font-size:19px;line-height:22px;height:22px;}
+.sw .n{font-size:9px;color:var(--dim);}
+.sw.on{border-color:var(--accent);box-shadow:0 0 0 2px rgba(94,234,212,.18);}
+.sw.on .n{color:var(--accent);}
+
+/* ---------- 按钮 ---------- */
+.grid-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.grid-btns.f4{grid-template-columns:repeat(4,1fr);}
+.btn{
+  min-height:46px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);
+  border-radius:11px;font:inherit;font-size:12.5px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 4px;
+}
+.btn:active{transform:scale(.96);}
+.btn .ic{font-size:16px;line-height:1;}
+.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#05231f;font-weight:700;border-color:transparent;}
+.btn.on{background:rgba(94,234,212,.14);border-color:var(--accent);color:var(--accent);}
+.btn.warn{color:var(--danger);border-color:rgba(251,113,133,.4);}
+.btn:disabled{opacity:.35;}
+
+/* ---------- 折叠 ---------- */
+details{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;}
+summary{
+  padding:14px;min-height:50px;font-size:12.5px;color:var(--fg);cursor:pointer;list-style:none;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+summary::-webkit-details-marker{display:none;}
+summary::after{content:"▾";color:var(--dim);transition:transform .18s;}
+details[open] summary::after{transform:rotate(180deg);}
+summary .tag{font-size:10.5px;color:var(--dim);font-weight:400;}
+.pad{padding:0 12px 14px;}
+
+/* ---------- 滑块 ---------- */
+.slider-row{margin-bottom:14px;}
+.slider-row .lbl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--dim);margin-bottom:6px;}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:34px;background:transparent;margin:0;
+}
+input[type=range]::-webkit-slider-runnable-track{height:6px;background:var(--panel2);border-radius:3px;border:1px solid var(--line);}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:var(--accent);
+  margin-top:-11px;box-shadow:0 2px 6px rgba(0,0,0,.4);
+}
+input[type=range]::-moz-range-track{height:6px;background:var(--panel2);border-radius:3px;}
+input[type=range]::-moz-range-thumb{width:26px;height:26px;border:0;border-radius:50%;background:var(--accent);}
+
+/* ---------- 输出 ---------- */
+#out{
+  background:#f7f7f2;color:#111;border-radius:9px;padding:10px;margin:0;overflow:auto;
+  max-height:42vh;font-size:9px;line-height:1.12;white-space:pre;
+  -webkit-user-select:text;user-select:text;-webkit-touch-callout:default;
+}
+body.darkout #out{background:#07090c;color:#8ef5cd;}
+.zoom{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.zoom button{width:40px;height:36px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);font:inherit;font-size:15px;cursor:pointer;}
+.zoom span{font-size:11px;color:var(--dim);flex:1;text-align:center;}
+#pngprev{width:100%;border-radius:9px;display:block;background:#f7f7f2;margin-top:4px;}
+.stats{font-size:11px;color:var(--dim);margin:8px 0 0;display:flex;gap:14px;flex-wrap:wrap;}
+
+/* ---------- toast ---------- */
+#toast{
+  position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
+  background:rgba(14,22,30,.96);border:1px solid var(--line);color:var(--fg);
+  padding:11px 20px;border-radius:22px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:99;
+  max-width:86vw;text-align:center;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+footer{text-align:center;font-size:10.5px;color:#4b5b6b;padding:6px 0 0;line-height:1.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">AICILL</div>
+    <div class="sub">字符画设计器 · 涂抹色块，实时生成字符画</div>
+  </header>
+
+  <!-- 画布 -->
+  <div class="card">
+    <div class="seg" id="viewSeg" style="margin-bottom:10px">
+      <button data-v="overlay" class="on">叠加</button>
+      <button data-v="block">色块</button>
+      <button data-v="char">字符</button>
+    </div>
+    <div id="stage">
+      <canvas id="board"></canvas>
+      <div class="hint" id="hint">单指滑动涂抹</div>
+    </div>
+    <div class="rowinfo">
+      <span id="sizeInfo">48 × 24</span>
+      <span id="toolInfo">画笔 · 粗细 1</span>
+    </div>
+  </div>
+
+  <!-- 笔刷 -->
+  <div class="card">
+    <p class="card-title"><span>笔刷浓度（越深 = 字符越密）</span><span id="brushInfo"></span></p>
+    <div id="palette"></div>
+    <div class="grid-btns" style="margin-top:2px">
+      <button class="btn" id="toolPen"><span class="ic">✏️</span>画笔</button>
+      <button class="btn" id="toolEraser"><span class="ic">🧽</span>橡皮</button>
+      <button class="btn" id="toolFill"><span class="ic">🪣</span>油漆桶</button>
+    </div>
+    <p class="card-title" style="margin:12px 0 8px 2px">笔尖粗细</p>
+    <div class="seg" id="sizeSeg">
+      <button data-s="1" class="on">1×1</button>
+      <button data-s="2">2×2</button>
+      <button data-s="3">3×3</button>
+      <button data-s="5">5×5</button>
+    </div>
+  </div>
+
+  <!-- 操作 -->
+  <div class="card">
+    <p class="card-title">操作</p>
+    <div class="grid-btns">
+      <button class="btn" id="btnUndo"><span class="ic">↩️</span>撤销</button>
+      <button class="btn" id="btnRedo"><span class="ic">↪️</span>重做</button>
+      <button class="btn" id="btnBg"><span class="ic">🎨</span>整体填充</button>
+      <button class="btn" id="btnInvert"><span class="ic">🔁</span>明暗反转</button>
+      <button class="btn" id="btnMirror"><span class="ic">↔️</span>左右镜像</button>
+      <button class="btn" id="btnFlip"><span class="ic">🔃</span>上下翻转</button>
+      <button class="btn" id="btnImg"><span class="ic">🖼️</span>照片生成</button>
+      <button class="btn" id="btnGrid"><span class="ic">#️⃣</span>网格线</button>
+      <button class="btn" id="btnClear"><span class="ic">🗑️</span>清空</button>
+    </div>
+  </div>
+
+  <!-- 导出 -->
+  <details open>
+    <summary>字符画成品<span class="tag" id="outTag">复制 · 保存</span></summary>
+    <div class="pad">
+      <div class="seg" id="themeSeg" style="margin-bottom:10px">
+        <button data-t="light" class="on">浅色纸张</button>
+        <button data-t="dark">深色终端</button>
+      </div>
+      <div class="zoom">
+        <button id="zOut">－</button><span id="zInfo">字号</span><button id="zIn">＋</button>
+      </div>
+      <pre id="out"></pre>
+      <p class="stats"><span id="stSize"></span><span id="stBytes"></span></p>
+      <div class="grid-btns" style="margin-top:12px">
+        <button class="btn primary" id="btnCopy"><span class="ic">📋</span>复制文本</button>
+        <button class="btn" id="btnTxt"><span class="ic">📄</span>存为TXT</button>
+        <button class="btn" id="btnPng"><span class="ic">🖼️</span>存为PNG</button>
+      </div>
+      <p class="card-title" style="margin:14px 0 6px 2px">图片预览（长按可保存到相册）</p>
+      <img id="pngprev" alt="字符画预览图" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
+    </div>
+  </details>
+
+  <!-- 设置 -->
+  <details>
+    <summary>画布与字符<span class="tag">尺寸 · 风格</span></summary>
+    <div class="pad">
+      <p class="card-title" style="margin:4px 0 8px 2px">画布尺寸（列 × 行）</p>
+      <div class="seg" id="dimSeg" style="flex-wrap:wrap">
+        <button data-d="24x12">24×12</button>
+        <button data-d="32x16">32×16</button>
+        <button data-d="48x24" class="on">48×24</button>
+        <button data-d="64x32">64×32</button>
+        <button data-d="80x40">80×40</button>
+        <button data-d="100x50">100×50</button>
+      </div>
+      <p class="card-title" style="margin:16px 0 8px 2px">字符风格</p>
+      <div class="seg" id="csSeg" style="flex-wrap:wrap"></div>
+    </div>
+  </details>
+
+  <!-- 图像调整 -->
+  <details id="imgPanel">
+    <summary>照片转字符画<span class="tag">明暗微调</span></summary>
+    <div class="pad">
+      <div class="slider-row">
+        <div class="lbl"><span>亮度</span><span id="lbBri">0</span></div>
+        <input type="range" id="sBri" min="-50" max="50" value="0">
+      </div>
+      <div class="slider-row">
+        <div class="lbl"><span>对比度</span><span id="lbCon">1.0</span></div>
+        <input type="range" id="sCon" min="50" max="260" value="100">
+      </div>
+      <div class="grid-btns">
+        <button class="btn primary" id="btnPick"><span class="ic">📷</span>选择照片</button>
+        <button class="btn" id="btnRe"><span class="ic">🔄</span>重新转换</button>
+        <button class="btn" id="btnReset"><span class="ic">↺</span>参数复位</button>
+      </div>
+      <p class="card-title" style="margin-top:12px">提示：先选照片自动转换，再拖动滑块微调明暗；也可以继续手工涂抹修改细节。</p>
+    </div>
+  </details>
+
+  <footer>AICILL · 纯前端单文件 · 全部操作仅需点按与滑动<br>作品保存在本页，刷新即清空，记得及时导出</footer>
+</div>
+
+<input type="file" id="file" accept="image/*" style="display:none">
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ============ 常量 ============ */
+var MONO = 'ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace';
+var CELL_ASPECT = 2;               // 单元格 高/宽，贴合等宽字体比例
+var CHARSETS = {
+  classic: {name:'经典', chars:" .:-=+*#%@"},
+  fine:    {name:'细腻', chars:" .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"},
+  block:   {name:'方块', chars:" ░▒▓█"},
+  bar:     {name:'色阶', chars:" ▁▂▃▄▅▆▇█"},
+  dot:     {name:'点线', chars:" ·:+*█"},
+  mini:    {name:'极简', chars:" .#"}
+};
+
+/* ============ 状态 ============ */
+var S = {
+  cols:48, rows:24,
+  grid:null,
+  level:6,
+  brush:1,
+  tool:'pen',
+  cs:'classic',
+  view:'overlay',
+  theme:'light',
+  showGrid:true,
+  bright:0, contrast:1
+};
+var undoStack=[], redoStack=[], snapshot=null, lastImg=null, zoomDelta=0;
+
+function levels(){ return CHARSETS[S.cs].chars.length - 1; }
+function chars(){ return CHARSETS[S.cs].chars; }
+
+/* ============ DOM ============ */
+var $=function(id){return document.getElementById(id);};
+var board=$('board'), ctx=board.getContext('2d');
+var out=$('out'), toastEl=$('toast'), pngprev=$('pngprev');
+
+/* ============ 工具 ============ */
+function toast(msg){
+  toastEl.textContent=msg; toastEl.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(function(){toastEl.classList.remove('show');},1900);
+}
+function clamp(v,a,b){return v<a?a:(v>b?b:v);}
+
+/* ============ 画布尺寸 ============ */
+function layout(){
+  var stage=$('stage');
+  var availW=stage.clientWidth || 320;
+  var cw=availW/S.cols;
+  var ch=cw*CELL_ASPECT;
+  var cssH=ch*S.rows;
+  board.style.width=availW+'px'; board.style.height=cssH+'px';
+  var dpr=Math.min(window.devicePixelRatio||1,3);
+  board.width=Math.round(availW*dpr); board.height=Math.round(cssH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  S.cw=cw; S.ch=ch;
+}
+
+/* ============ 绘制 ============ */
+function themeColors(){
+  return S.theme==='light'
+    ? {bg:'#f7f7f2', fg:'#14181c', grid:'rgba(0,0,0,.09)'}
+    : {bg:'#07090c', fg:'#8ef5cd', grid:'rgba(255,255,255,.08)'};
+}
+/* 按字符集实际最宽字符自适应字号，保证任何字符都不溢出格子 */
+function fitFontFor(g, cw, chh){
+  var c=chars(), probe=100;
+  g.font=probe+'px '+MONO;
+  var maxRatio=0.45, i, w;
+  for(i=0;i<c.length;i++){
+    w=g.measureText(c[i]).width/probe;
+    if(w>maxRatio) maxRatio=w;
+  }
+  var fs=Math.min(Math.floor(chh*0.95), Math.floor((cw*1.04)/maxRatio));
+  return Math.max(4, fs);
+}
+function render(){
+  if(!S.grid) return;
+  layout();
+  var T=themeColors(), L=levels(), cw=S.cw, chh=S.ch;
+  ctx.fillStyle=T.bg; ctx.fillRect(0,0,S.cols*cw,S.rows*chh);
+
+  var showBlock = S.view!=='char';
+  var showChar  = S.view!=='block';
+  var fs=0, c=null;
+  if(showChar){ fs=fitFontFor(ctx, cw, chh); ctx.font=fs+'px '+MONO; ctx.textAlign='center'; ctx.textBaseline='middle'; c=chars(); }
+
+  for(var r=0;r<S.rows;r++){
+    for(var q=0;q<S.cols;q++){
+      var v=S.grid[r*S.cols+q];
+      if(v===0 && S.view==='overlay') continue;
+      var x=q*cw, y=r*chh;
+      if(showBlock){
+        var t=v/L;
+        if(S.theme==='light'){
+          var g=Math.round(247-227*t);
+          ctx.fillStyle='rgb('+g+','+g+','+Math.round(g*0.98)+')';
+        }else{
+          ctx.fillStyle='rgba(142,245,205,'+(t*0.92)+')';
+        }
+        if(S.view==='overlay') ctx.globalAlpha=0.30+0.55*t;
+        ctx.fillRect(x,y,cw+0.6,chh+0.6);
+        ctx.globalAlpha=1;
+      }
+      if(showChar && v>0){
+        ctx.fillStyle=T.fg;
+        ctx.fillText(c[v], x+cw/2, y+chh/2+fs*0.03);
+      }
+    }
+  }
+  if(S.showGrid){
+    ctx.strokeStyle=T.grid; ctx.lineWidth=1; ctx.beginPath();
+    for(var i=1;i<S.cols;i++){ ctx.moveTo(i*cw,0); ctx.lineTo(i*cw,S.rows*chh); }
+    for(var j=1;j<S.rows;j++){ ctx.moveTo(0,j*chh); ctx.lineTo(S.cols*cw,j*chh); }
+    ctx.stroke();
+  }
+}
+
+/* ============ 文本输出 ============ */
+function toText(){
+  var c=chars(), t='', r, q;
+  for(r=0;r<S.rows;r++){
+    for(q=0;q<S.cols;q++) t+=c[S.grid[r*S.cols+q]];
+    if(r<S.rows-1) t+='\n';
+  }
+  return t;
+}
+function updateOut(){
+  var t=toText(); out.textContent=t;
+  var base=Math.max(5, Math.floor(((out.clientWidth||300)-20)/S.cols));
+  var fs=clamp(base+zoomDelta,3,28);
+  out.style.fontSize=fs+'px';
+  $('zInfo').textContent='字号 '+fs+'px';
+  $('stSize').textContent=S.cols+'×'+S.rows+' = '+(S.cols*S.rows)+' 字符';
+  $('stBytes').textContent=Math.ceil(new Blob([t]).size/1024*10)/10+' KB';
+  $('sizeInfo').textContent=S.cols+' × '+S.rows;
+  $('outTag').textContent=S.cols+'×'+S.rows+' · 已生成';
+  document.body.classList.toggle('darkout', S.theme==='dark');
+  clearTimeout(updateOut._p);
+  updateOut._p=setTimeout(updatePNG, 220);
+}
+function updatePNG(){
+  var L=levels(), c=chars(), C=S.cols, R=S.rows;
+  var cw=16, chh=cw*CELL_ASPECT;
+  var scale=Math.min(2, Math.max(1, Math.round(1400/(C*cw))));
+  cw*=scale; chh*=scale;
+  var cv=document.createElement('canvas');
+  cv.width=C*cw; cv.height=R*chh;
+  var g=cv.getContext('2d');
+  var T=themeColors();
+  g.fillStyle=T.bg; g.fillRect(0,0,cv.width,cv.height);
+  var fs=fitFontFor(g, cw, chh);
+  g.font=fs+'px '+MONO; g.textAlign='center'; g.textBaseline='middle';
+  g.fillStyle=T.fg;
+  for(var r=0;r<R;r++) for(var q=0;q<C;q++){
+    var v=S.grid[r*C+q];
+    if(v>0) g.fillText(c[v], q*cw+cw/2, r*chh+chh/2+fs*0.03);
+  }
+  try{ pngprev.src=cv.toDataURL('image/png'); }catch(e){}
+  updatePNG.cache=cv;
+}
+
+/* ============ 历史 ============ */
+function pushHistory(){
+  undoStack.push(new Uint8Array(S.grid));
+  if(undoStack.length>40) undoStack.shift();
+  redoStack.length=0;
+  syncBtns();
+}
+function undo(){
+  if(!undoStack.length) return;
+  redoStack.push(new Uint8Array(S.grid));
+  S.grid=undoStack.pop();
+  after(); toast('已撤销');
+}
+function redo(){
+  if(!redoStack.length) return;
+  undoStack.push(new Uint8Array(S.grid));
+  S.grid=redoStack.pop();
+  after(); toast('已重做');
+}
+function syncBtns(){
+  $('btnUndo').disabled=!undoStack.length;
+  $('btnRedo').disabled=!redoStack.length;
+}
+function after(){ render(); updateOut(); syncBtns(); }
+
+/* ============ 涂抹 ============ */
+function setCell(q,r,v){
+  if(q<0||r<0||q>=S.cols||r>=S.rows) return;
+  S.grid[r*S.cols+q]=v;
+}
+function stamp(q,r,v){
+  var s=S.brush, off = s<=2?0:-Math.floor(s/2);
+  for(var dy=0;dy<s;dy++) for(var dx=0;dx<s;dx++) setCell(q+dx+off, r+dy+off, v);
+}
+function flood(q,r,target){
+  var v = S.tool==='eraser' ? 0 : S.level;
+  if(target===v) return;
+  var st=[[q,r]], C=S.cols, R=S.rows;
+  while(st.length){
+    var p=st.pop(), x=p[0], y=p[1];
+    if(x<0||y<0||x>=C||y>=R) continue;
+    var i=y*C+x;
+    if(S.grid[i]!==target) continue;
+    S.grid[i]=v;
+    st.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+  }
+}
+function line(x0,y0,x1,y1,cb){
+  var dx=Math.abs(x1-x0), dy=Math.abs(y1-y0);
+  var sx=x0<x1?1:-1, sy=y0<y1?1:-1, err=dx-dy;
+  for(;;){
+    cb(x0,y0);
+    if(x0===x1&&y0===y1) break;
+    var e2=2*err;
+    if(e2>-dy){err-=dy;x0+=sx;}
+    if(e2<dx){err+=dx;y0+=sy;}
+  }
+}
+var painting=false, last=null;
+function pos(e){
+  var rect=board.getBoundingClientRect();
+  return {
+    q: Math.floor((e.clientX-rect.left)/rect.width*S.cols),
+    r: Math.floor((e.clientY-rect.top)/rect.height*S.rows)
+  };
+}
+board.addEventListener('pointerdown', function(e){
+  e.preventDefault();
+  if(board.setPointerCapture) board.setPointerCapture(e.pointerId);
+  snapshot=new Uint8Array(S.grid);
+  painting=true;
+  var p=pos(e); last=p;
+  p.q=clamp(p.q,0,S.cols-1); p.r=clamp(p.r,0,S.rows-1);
+  if(S.tool==='fill'){ flood(p.q,p.r,S.grid[p.r*S.cols+p.q]); }
+  else { var v = S.tool==='eraser'?0:S.level; stamp(p.q,p.r,v); }
+  render(); updateOut();
+});
+board.addEventListener('pointermove', function(e){
+  if(!painting) return;
+  e.preventDefault();
+  var p=pos(e);
+  if(S.tool==='fill') return;
+  var v = S.tool==='eraser'?0:S.level;
+  if(last && (last.q!==p.q||last.r!==p.r)){
+    var lq=last.q, lr=last.r;
+    line(lq,lr,p.q,p.r,function(x,y){ stamp(x,y,v); });
+    last=p;
+  }
+  render(); updateOut();
+});
+function endStroke(){
+  if(!painting) return;
+  painting=false;
+  var diff=false;
+  for(var i=0;i<S.grid.length;i++){ if(S.grid[i]!==snapshot[i]){diff=true;break;} }
+  if(diff){ pushHistory(); }
+  snapshot=null;
+}
+board.addEventListener('pointerup', endStroke);
+board.addEventListener('pointercancel', endStroke);
+board.addEventListener('contextmenu', function(e){e.preventDefault();});
+
+/* ============ 笔刷面板 ============ */
+function buildPalette(){
+  var pal=$('palette'), c=chars(), L=levels();
+  pal.innerHTML='';
+  for(var i=0;i<=L;i++){
+    var d=document.createElement('div');
+    d.className='sw'+(i===S.level?' on':'');
+    var t=i/L, g;
+    if(S.theme==='light'){ g=Math.round(247-227*t); d.style.background='rgb('+g+','+g+','+Math.round(g*0.98)+')'; d.style.color= t>0.55 ? '#f2f6fa' : '#14181c'; }
+    else { d.style.background='rgb('+Math.round(7+t*120)+','+Math.round(9+t*190)+','+Math.round(12+t*150)+')'; d.style.color='#c8ffe8'; }
+    d.innerHTML='<span class="g">'+c[i].replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</span><span class="n">'+i+'</span>';
+    (function(idx){ d.addEventListener('click', function(){ S.level=idx; if(S.tool!=='pen'){S.tool='pen';syncTools();} buildPalette(); updateToolInfo(); }); })(i);
+    pal.appendChild(d);
+  }
+  $('brushInfo').textContent=(L+1)+' 级 · 当前 '+S.level;
+  pal.scrollLeft=Math.max(0, S.level*52 - pal.clientWidth/2 + 26);
+}
+function updateToolInfo(){
+  var n={pen:'画笔',eraser:'橡皮',fill:'油漆桶'}[S.tool];
+  $('toolInfo').textContent=n+' · 粗细 '+S.brush+'×'+S.brush+' · 浓度 '+S.level;
+}
+function syncTools(){
+  $('toolPen').classList.toggle('on', S.tool==='pen');
+  $('toolEraser').classList.toggle('on', S.tool==='eraser');
+  $('toolFill').classList.toggle('on', S.tool==='fill');
+  $('hint').textContent = S.tool==='fill' ? '点按区域填色' : '单指滑动涂抹';
+}
+
+/* ============ 字符风格 ============ */
+function buildCharsetSeg(){
+  var seg=$('csSeg'); seg.innerHTML='';
+  Object.keys(CHARSETS).forEach(function(k){
+    var b=document.createElement('button');
+    b.textContent=CHARSETS[k].name+' ('+CHARSETS[k].chars.length+')';
+    b.className=(k===S.cs?'on':'');
+    b.addEventListener('click', function(){ setCharset(k); });
+    seg.appendChild(b);
+  });
+}
+function setCharset(k){
+  var oldL=levels();
+  S.cs=k;
+  var newL=levels();
+  for(var i=0;i<S.grid.length;i++) S.grid[i]=Math.round(S.grid[i]/oldL*newL);
+  S.level=Math.round(S.level/oldL*newL);
+  buildCharsetSeg(); buildPalette(); updateToolInfo(); after();
+}
+
+/* ============ 尺寸 ============ */
+function setDim(c,r){
+  var old=S.grid, oc=S.cols, or_=S.rows;
+  var ng=new Uint8Array(c*r);
+  for(var y=0;y<r;y++) for(var x=0;x<c;x++){
+    var sx=Math.min(oc-1, Math.floor(x/ c*oc));
+    var sy=Math.min(or_-1, Math.floor(y/ r*or_));
+    ng[y*c+x]=old[sy*oc+sx];
+  }
+  S.grid=ng; S.cols=c; S.rows=r;
+  undoStack.length=0; redoStack.length=0;
+  Array.prototype.forEach.call($('dimSeg').children, function(b){ b.classList.toggle('on', b.dataset.d===c+'x'+r); });
+  after();
+}
+
+/* ============ 变换操作 ============ */
+function invert(){
+  pushHistory();
+  var L=levels();
+  for(var i=0;i<S.grid.length;i++) S.grid[i]=L-S.grid[i];
+  after(); toast('已反转明暗');
+}
+function mirror(){
+  pushHistory();
+  var g=new Uint8Array(S.grid.length), C=S.cols;
+  for(var y=0;y<S.rows;y++) for(var x=0;x<C;x++) g[y*C+x]=S.grid[y*C+(C-1-x)];
+  S.grid=g; after(); toast('已左右镜像');
+}
+function flip(){
+  pushHistory();
+  var g=new Uint8Array(S.grid.length), C=S.cols;
+  for(var y=0;y<S.rows;y++) for(var x=0;x<C;x++) g[y*C+x]=S.grid[(S.rows-1-y)*C+x];
+  S.grid=g; after(); toast('已上下翻转');
+}
+function fillAll(){
+  pushHistory();
+  var v = S.tool==='eraser'?0:S.level;
+  for(var i=0;i<S.grid.length;i++) S.grid[i]=v;
+  after(); toast('已整体填充为浓度 '+v);
+}
+var clearArmed=false;
+function clearAll(){
+  if(!clearArmed){
+    clearArmed=true;
+    $('btnClear').classList.add('warn');
+    $('btnClear').lastChild.textContent='再点清空';
+    setTimeout(function(){
+      clearArmed=false;
+      $('btnClear').classList.remove('warn');
+      $('btnClear').lastChild.textContent='清空';
+    },2600);
+    toast('再点一次确认清空');
+    return;
+  }
+  clearArmed=false;
+  $('btnClear').classList.remove('warn');
+  $('btnClear').lastChild.textContent='清空';
+  pushHistory();
+  S.grid.fill(0); after(); toast('已清空');
+}
+
+/* ============ 照片转字符画 ============ */
+function drawCover(g,img,w,h){
+  var s=Math.max(w/img.width, h/img.height);
+  var dw=img.width*s, dh=img.height*s;
+  g.imageSmoothingEnabled=true; g.imageSmoothingQuality='high';
+  g.drawImage(img,(w-dw)/2,(h-dh)/2,dw,dh);
+}
+function genFromImage(){
+  if(!lastImg){ $('file').click(); return; }
+  pushHistory();
+  var C=S.cols, R=S.rows, L=levels();
+  var cv=document.createElement('canvas');
+  cv.width=C; cv.height=R;
+  var g=cv.getContext('2d');
+  g.fillStyle='#fff'; g.fillRect(0,0,C,R);
+  drawCover(g,lastImg,C,R);
+  var d;
+  try{ d=g.getImageData(0,0,C,R).data; }catch(e){ toast('读取图片失败'); return; }
+  for(var i=0;i<C*R;i++){
+    var l=(0.299*d[i*4]+0.587*d[i*4+1]+0.114*d[i*4+2])/255;
+    l=(l-0.5)*S.contrast+0.5+S.bright;
+    l=clamp(l,0,1);
+    S.grid[i]=Math.round((1-l)*L);
+  }
+  after(); toast('已转换为字符画');
+}
+$('file').addEventListener('change', function(e){
+  var f=e.target.files && e.target.files[0];
+  if(!f) return;
+  var url=URL.createObjectURL(f);
+  var img=new Image();
+  img.onload=function(){
+    lastImg=img; genFromImage();
+    $('imgPanel').open=true;
+    URL.revokeObjectURL(url);
+  };
+  img.onerror=function(){ toast('图片加载失败'); };
+  img.src=url;
+  e.target.value='';
+});
+
+/* ============ 导出 ============ */
+function download(name, blob){
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },300);
+}
+function copyText(t){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(function(){toast('字符画已复制到剪贴板');},fallback);
+  } else fallback();
+  function fallback(){
+    var ta=document.createElement('textarea');
+    ta.value=t; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); toast('已复制'); }catch(e){ toast('复制失败，请长按预览文本手动复制'); }
+    document.body.removeChild(ta);
+  }
+}
+
+/* ============ 事件绑定 ============ */
+Array.prototype.forEach.call($('viewSeg').children, function(b){
+  b.addEventListener('click', function(){
+    S.view=b.dataset.v;
+    Array.prototype.forEach.call($('viewSeg').children, function(x){x.classList.toggle('on',x===b);});
+    render();
+  });
+});
+Array.prototype.forEach.call($('themeSeg').children, function(b){
+  b.addEventListener('click', function(){
+    S.theme=b.dataset.t;
+    Array.prototype.forEach.call($('themeSeg').children, function(x){x.classList.toggle('on',x===b);});
+    buildPalette(); after();
+  });
+});
+Array.prototype.forEach.call($('sizeSeg').children, function(b){
+  b.addEventListener('click', function(){
+    S.brush=parseInt(b.dataset.s,10);
+    Array.prototype.forEach.call($('sizeSeg').children, function(x){x.classList.toggle('on',x===b);});
+    updateToolInfo();
+  });
+});
+Array.prototype.forEach.call($('dimSeg').children, function(b){
+  b.addEventListener('click', function(){
+    var p=b.dataset.d.split('x'); setDim(parseInt(p[0],10),parseInt(p[1],10));
+  });
+});
+$('toolPen').addEventListener('click', function(){ S.tool='pen'; syncTools(); updateToolInfo(); });
+$('toolEraser').addEventListener('click', function(){ S.tool='eraser'; syncTools(); updateToolInfo(); });
+$('toolFill').addEventListener('click', function(){ S.tool='fill'; syncTools(); updateToolInfo(); });
+$('btnUndo').addEventListener('click', undo);
+$('btnRedo').addEventListener('click', redo);
+$('btnBg').addEventListener('click', fillAll);
+$('btnInvert').addEventListener('click', invert);
+$('btnMirror').addEventListener('click', mirror);
+$('btnFlip').addEventListener('click', flip);
+$('btnImg').addEventListener('click', function(){ $('imgPanel').open=true; genFromImage(); });
+$('btnGrid').addEventListener('click', function(){
+  S.showGrid=!S.showGrid;
+  $('btnGrid').classList.toggle('on', S.showGrid);
+  render(); toast(S.showGrid?'网格线已开':'网格线已关');
+});
+$('btnClear').addEventListener('click', clearAll);
+$('btnCopy').addEventListener('click', function(){ copyText(toText()); });
+$('btnTxt').addEventListener('click', function(){
+  download('AICILL_字符画_'+S.cols+'x'+S.rows+'.txt', new Blob([toText()],{type:'text/plain;charset=utf-8'}));
+  toast('TXT 已保存');
+});
+$('btnPng').addEventListener('click', function(){
+  var cv=updatePNG.cache; if(!cv){ toast('请稍候重试'); return; }
+  if(cv.toBlob) cv.toBlob(function(b){ download('AICILL_字符画_'+cv.width+'x'+cv.height+'.png', b); toast('PNG 已保存'); });
+  else toast('当前浏览器不支持导出图片');
+});
+$('zIn').addEventListener('click', function(){ zoomDelta+=1; updateOut(); });
+$('zOut').addEventListener('click', function(){ zoomDelta-=1; updateOut(); });
+$('btnPick').addEventListener('click', function(){ $('file').click(); });
+$('btnRe').addEventListener('click', function(){ if(lastImg) genFromImage(); else toast('请先选择照片'); });
+$('btnReset').addEventListener('click', function(){
+  S.bright=0; S.contrast=1;
+  $('sBri').value=0; $('lbBri').textContent='0';
+  $('sCon').value=100; $('lbCon').textContent='1.0';
+  if(lastImg) genFromImage();
+  toast('参数已复位');
+});
+$('sBri').addEventListener('input', function(){
+  S.bright=parseInt(this.value,10)/100; $('lbBri').textContent=S.bright.toFixed(2);
+});
+$('sBri').addEventListener('change', function(){ if(lastImg) genFromImage(); });
+$('sCon').addEventListener('input', function(){
+  S.contrast=parseInt(this.value,10)/100; $('lbCon').textContent=S.contrast.toFixed(2);
+});
+$('sCon').addEventListener('change', function(){ if(lastImg) genFromImage(); });
+
+window.addEventListener('resize', function(){ render(); updateOut(); });
+window.addEventListener('orientationchange', function(){ setTimeout(function(){render();updateOut();},260); });
+document.addEventListener('gesturestart', function(e){ e.preventDefault(); });
+document.addEventListener('dblclick', function(e){ e.preventDefault(); }, {passive:false});
+
+/* ============ 初始化 ============ */
+function init(){
+  S.grid=new Uint8Array(S.cols*S.rows);
+  buildCharsetSeg(); buildPalette(); syncTools(); updateToolInfo();
+  $('btnGrid').classList.add('on');
+  render(); updateOut(); syncBtns();
+}
+init();
+})();
+</script>
+</body>
+</html>
